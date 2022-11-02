@@ -278,20 +278,19 @@ void display(void)
 	glUseProgram(shaderProgram); // Set the shader program to use for this draw call
 
 	// Task 5: Set the `triangleColor` uniform in the shader to `g_triangleColor`
+	labhelper::setUniformSlow(shaderProgram, "triangleColor", g_triangleColor);
 
 	// Bind the vertex array object that contains all the vertex data.
 	glBindVertexArray(vertexArrayObject);
 	// Submit triangles from currently bound vertex array object.
 	glDrawArrays(GL_TRIANGLES, 0, 3); // Render 1 triangle
-
+	
+	// Task 5: Set the `triangleColor` uniform to white
+	labhelper::setUniformSlow(shaderProgram, "triangleColor", glm::vec3(1, 1, 1));
 
 	// Task 4: Render the second VAO
 	glBindVertexArray(vaoTriangle2);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
-	 
-	 
-	
-	// Task 5: Set the `triangleColor` uniform to white
 
 	glUseProgram(0); // "unsets" the current shader program. Not really necessary.
 }
@@ -304,8 +303,8 @@ void gui()
 {
 	// ----------------- Set variables --------------------------
 	ImGui::ColorEdit3("clear color", g_clearColor);
-
 	// Task 5: Add a new ColorEdit3 control to modify the g_triangleColor variable
+	ImGui::ColorEdit3("triangle color", &g_triangleColor.x);
 
 	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
 	            ImGui::GetIO().Framerate);

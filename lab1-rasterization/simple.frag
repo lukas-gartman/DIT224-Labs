@@ -9,9 +9,10 @@ in vec3 color;
 layout(location = 0) out vec4 fragmentColor;
 
 // Task 5: Add a uniform to tint all the pixels by some color
+uniform vec3 triangleColor = vec3(1, 1, 1);
 
 void main()
 {
 // Task 3: Set the output color to be the incoming interpolated color received
-	fragmentColor.rgb = color;
+	fragmentColor.rgb = color * triangleColor;
 }

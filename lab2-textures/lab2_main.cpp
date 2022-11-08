@@ -48,6 +48,9 @@ GLuint textureBuffer;
 GLuint texture;
 
 
+GLuint explosionPositionBuffer, explosionTextureBuffer, explosionTexture, posAndTexCoordsVertexArray;
+
+
 ///////////////////////////////////////////////////////////////////////////////
 /// This function is called once at the start of the program and never again
 ///////////////////////////////////////////////////////////////////////////////
@@ -68,10 +71,11 @@ void initialize()
 	///////////////////////////////////////////////////////////////////////////
 	const float positions[] = {
 		// X      Y       Z
-		-10.0f, 0.0f, -10.0f,  // v0
-		-10.0f, 0.0f, -330.0f, // v1
+		10.0f,  0.0f, -10.0f,   // v3
 		10.0f,  0.0f, -330.0f, // v2
-		10.0f,  0.0f, -10.0f   // v3
+		-10.0f, 0.0f, -330.0f, // v1
+		-10.0f, 0.0f, -10.0f  // v0
+		
 	};
 	// Create a handle for the vertex position buffer
 	glGenBuffers(1, &positionBuffer);
@@ -146,6 +150,67 @@ void initialize()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 16.0f);
+
+
+
+
+	// EXPLOTION "EFFECT"
+	glGenVertexArrays(1, &posAndTexCoordsVertexArray);
+	glBindVertexArray(posAndTexCoordsVertexArray);
+
+	// This is wrong on every plane, index buffer now bound for this vertex array object
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, labhelper::array_length(indices) * sizeof(float), indices,
+		GL_STATIC_DRAW);
+
+	const float explosionPositions[] = {
+		// X      Y       Z
+		30.0f,  0.0f, -50.0f,   // v3
+		30.0f,  10.0f, -50.0f, // v2
+		10.0f, 10.0f, -50.0f, // v1
+		10.0f, 0.0f, -50.0f  // v0
+	};
+
+	glGenBuffers(1, &explosionPositionBuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, explosionPositionBuffer);
+	glBufferData(GL_ARRAY_BUFFER, labhelper::array_length(explosionPositions) * sizeof(float), explosionPositions,
+		GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, false /*normalized*/, 0 /*stride*/, 0 /*offset*/);
+	glEnableVertexAttribArray(0);
+
+	int expw, exph, expcomp;
+	unsigned char* expimage = stbi_load("../scenes/textures/explosion.png", &expw, &exph, &expcomp, STBI_rgb_alpha);
+
+	glGenTextures(1, &explosionTexture);
+	glBindTexture(GL_TEXTURE_2D, explosionTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, expw, exph, 0, GL_RGBA, GL_UNSIGNED_BYTE, expimage);
+	free(expimage);
+
+	// Clamp texture to edge?
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	glGenerateMipmap(GL_TEXTURE_2D);
+	// Sets the type of filtering to be used on magnifying and
+	// minifying the active texture. These are the nicest available options.
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 16.0f);
+
+
+	float explosionTexCoords[] = {
+		0.0f, 0.0f, // (u,v) for v0 
+		0.0f, 1.0f, // (u,v) for v1
+		1.0f, 1.0f, // (u,v) for v2
+		1.0f, 0.0f // (u,v) for v3
+	};
+
+	glGenBuffers(1, &explosionTextureBuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, explosionTextureBuffer);
+	glBufferData(GL_ARRAY_BUFFER, labhelper::array_length(explosionTexCoords) * sizeof(float), explosionTexCoords,
+		GL_STATIC_DRAW);
+	glVertexAttribPointer(2, 2, GL_FLOAT, false, 0, 0);
+	glEnableVertexAttribArray(2);
 }
 
 
@@ -168,7 +233,7 @@ void display(void)
 
 	// We disable backface culling for this tutorial, otherwise care must be taken with the winding order
 	// of the vertices. It is however a lot faster to enable culling when drawing large scenes.
-	glDisable(GL_CULL_FACE); //glEnable(GL_CULL_FACE);
+	glEnable(GL_CULL_FACE);
 	// Disable depth testing
 	glDisable(GL_DEPTH_TEST);
 	// Set the shader program to use for this draw call
@@ -191,22 +256,36 @@ void display(void)
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texture);
 
-	glBindVertexArray(vertexArrayObject);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
 	switch (mag) {
-		case 0: glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); break;
-		case 1: glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); break;
+	case 0: glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST); break;
+	case 1: glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); break;
 	}
 
 	switch (mini) {
-		case 0: glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); break;
-		case 1: glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); break;
-		case 2: glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST); break;
-		case 3: glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR); break;
-		case 4: glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST); break;
-		case 5: glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR); break;
+	case 0: glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); break;
+	case 1: glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); break;
+	case 2: glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST); break;
+	case 3: glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR); break;
+	case 4: glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST); break;
+	case 5: glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR); break;
 	}
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, anisotropy);
+
+
+
+	glBindVertexArray(vertexArrayObject);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+	// Bind texture for explosion effect
+	glBindTexture(GL_TEXTURE_2D, explosionTexture);
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glBindVertexArray(posAndTexCoordsVertexArray);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
 
 
 	glUseProgram(0); // "unsets" the current shader program. Not really necessary.

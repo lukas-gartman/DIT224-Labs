@@ -54,7 +54,7 @@ GLuint shaderProgram;
 Model* cityModel = nullptr;
 Model* carModel = nullptr;
 Model* groundModel = nullptr;
-vec3 test(0.0, 1.0, 0.0);
+vec3 test(0.0, 4.0, 0.0);
 mat4 carModelMatrix = translate(test);
 
 vec3 worldUp = vec3(0.0f, 1.0f, 0.0f);
@@ -63,15 +63,6 @@ vec3 worldUp = vec3(0.0f, 1.0f, 0.0f);
 vec3 cameraPosition(15.0f, 15.0f, 15.0f);
 vec3 cameraDirection(-1.0f, -1.0f, -1.0f);
 mat4 T(1.0f), R(1.0f);
-
-// use camera direction as -z axis and compute the x (cameraRight) and y (cameraUp) base vectors
-vec3 cameraRight = normalize(cross(cameraDirection, worldUp));
-vec3 cameraUp = normalize(cross(cameraRight, cameraDirection));
-
-mat3 cameraBaseVectorsWorldSpace(cameraRight, cameraUp, -cameraDirection);
-
-mat4 cameraRotation = mat4(transpose(cameraBaseVectorsWorldSpace));
-mat4 viewMatrix = cameraRotation * translate(-cameraPosition);
 
 struct PerspectiveParams
 {
@@ -161,7 +152,16 @@ void display()
 	                               0.000000000f, 0.816496551f, 1.00000000f, 0.000000000f,   //
 	                               -0.707106769f, -0.408248276f, 1.00000000f, 0.000000000f, //
 	                               0.000000000f, 0.000000000f, -30.0000000f, 1.00000000f);  //
-	mat4 viewMatrix = constantViewMatrix;
+	//mat4 viewMatrix = constantViewMatrix;
+
+	// use camera direction as -z axis and compute the x (cameraRight) and y (cameraUp) base vectors
+	vec3 cameraRight = normalize(cross(cameraDirection, worldUp));
+	vec3 cameraUp = normalize(cross(cameraRight, cameraDirection));
+
+	mat3 cameraBaseVectorsWorldSpace(cameraRight, cameraUp, -cameraDirection);
+
+	mat4 cameraRotation = mat4(transpose(cameraBaseVectorsWorldSpace));
+	mat4 viewMatrix = cameraRotation * translate(-cameraPosition);
 
 	// Setup the projection matrix
 	if(w != old_w || h != old_h)
@@ -194,7 +194,6 @@ void display()
 	glUniformMatrix4fv(mvploc, 1, false, &modelViewProjectionMatrix[0].x);
 	glUniformMatrix4fv(mloc, 1, false, &carModelMatrix[0].x);
 	render(carModel);
-
 
 	glUseProgram(0);
 }

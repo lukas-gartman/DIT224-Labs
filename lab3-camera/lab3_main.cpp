@@ -13,6 +13,11 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
+
+// DELETE THIS LATER
+#include <iostream>
+#include "glm/ext.hpp"
+
 using namespace glm;
 using namespace labhelper;
 
@@ -49,7 +54,8 @@ GLuint shaderProgram;
 Model* cityModel = nullptr;
 Model* carModel = nullptr;
 Model* groundModel = nullptr;
-mat4 carModelMatrix(1.0f);
+vec3 test(0.0, 1.0, 0.0);
+mat4 carModelMatrix = translate(test);
 
 vec3 worldUp = vec3(0.0f, 1.0f, 0.0f);
 
@@ -57,6 +63,15 @@ vec3 worldUp = vec3(0.0f, 1.0f, 0.0f);
 vec3 cameraPosition(15.0f, 15.0f, 15.0f);
 vec3 cameraDirection(-1.0f, -1.0f, -1.0f);
 mat4 T(1.0f), R(1.0f);
+
+// use camera direction as -z axis and compute the x (cameraRight) and y (cameraUp) base vectors
+vec3 cameraRight = normalize(cross(cameraDirection, worldUp));
+vec3 cameraUp = normalize(cross(cameraRight, cameraDirection));
+
+mat3 cameraBaseVectorsWorldSpace(cameraRight, cameraUp, -cameraDirection);
+
+mat4 cameraRotation = mat4(transpose(cameraBaseVectorsWorldSpace));
+mat4 viewMatrix = cameraRotation * translate(-cameraPosition);
 
 struct PerspectiveParams
 {
@@ -233,9 +248,11 @@ bool handleEvents(void)
 			// More info at https://wiki.libsdl.org/SDL_MouseMotionEvent
 			int delta_x = event.motion.x - g_prevMouseCoords.x;
 			int delta_y = event.motion.y - g_prevMouseCoords.y;
-			if(event.button.button == SDL_BUTTON_LEFT)
-			{
-				printf("Mouse motion while left button down (%i, %i)\n", event.motion.x, event.motion.y);
+			if (event.button.button & SDL_BUTTON(SDL_BUTTON_LEFT)) {
+				float rotationSpeed = 0.005f;
+				mat4 yaw = rotate(rotationSpeed * -delta_x, worldUp);
+				mat4 pitch = rotate(rotationSpeed * -delta_y, normalize(cross(cameraDirection, worldUp)));
+				cameraDirection = vec3(pitch * yaw * vec4(cameraDirection, 0.0f));
 			}
 			g_prevMouseCoords.x = event.motion.x;
 			g_prevMouseCoords.y = event.motion.y;
@@ -245,23 +262,30 @@ bool handleEvents(void)
 	// check keyboard state (which keys are still pressed)
 	const uint8_t* state = SDL_GetKeyboardState(nullptr);
 
-	// implement camera controls based on key states
-	if(state[SDL_SCANCODE_UP])
+	// implement controls based on key states
+	const float speed = 10.f;
+	const float rotateSpeed = 2.f;
+	vec3 car_forward = vec3(0, 0, 1);
+	if (state[SDL_SCANCODE_UP])
 	{
-		printf("Key Up is pressed down\n");
+		car_forward = R * vec4(car_forward, 0.0f);
+		T = translate(car_forward * speed * deltaTime) * T;
 	}
-	if(state[SDL_SCANCODE_DOWN])
+	if (state[SDL_SCANCODE_DOWN])
 	{
-		printf("Key Down is pressed down\n");
+		car_forward = R * vec4(car_forward, 0.0f);
+		T = translate(-car_forward * speed * deltaTime) * T;
 	}
-	if(state[SDL_SCANCODE_LEFT])
+	if (state[SDL_SCANCODE_LEFT])
 	{
-		printf("Key Left is pressed down\n");
+		R = glm::rotate(rotateSpeed * deltaTime, glm::vec3(0, 1, 0)) * R;
 	}
-	if(state[SDL_SCANCODE_RIGHT])
+	if (state[SDL_SCANCODE_RIGHT])
 	{
-		printf("Key Right is pressed down\n");
+		R = glm::rotate(-rotateSpeed * deltaTime, glm::vec3(0, 1, 0)) * R;
 	}
+
+	carModelMatrix = T * R;
 
 	return quitEvent;
 }

@@ -21,41 +21,41 @@
 using namespace glm;
 using namespace labhelper;
 
-using std::min;
 using std::max;
+using std::min;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Various globals
 ///////////////////////////////////////////////////////////////////////////////
 
 // The window we'll be rendering to
-SDL_Window* g_window = nullptr;
+SDL_Window *g_window = nullptr;
 
 // Mouse input
-ivec2 g_prevMouseCoords = { -1, -1 };
+ivec2 g_prevMouseCoords = {-1, -1};
 bool g_isMouseDragging = false;
 
 float currentTime = 0.0f;
 float deltaTime = 0.0f;
 bool showUI = false;
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // Shader programs
 ///////////////////////////////////////////////////////////////////////////////
 GLuint shaderProgram;
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // Scene objects and properties
 ///////////////////////////////////////////////////////////////////////////////
 
 // Models
-Model* cityModel = nullptr;
-Model* carModel = nullptr;
-Model* groundModel = nullptr;
+Model *cityModel = nullptr;
+Model *carModel = nullptr;
+Model *groundModel = nullptr;
 vec3 test(0.0, 4.0, 0.0);
 mat4 carModelMatrix = translate(test);
+mat4 carModelMatrix2 = translate(vec3(25.0f, 0.0f, 0.0f));
+mat4 carModel2Origin = translate(vec3(25.0f, 0.0f, 0.0f));
 
 vec3 worldUp = vec3(0.0f, 1.0f, 0.0f);
 
@@ -72,10 +72,9 @@ struct PerspectiveParams
 	float near;
 	float far;
 };
-PerspectiveParams pp = { 45.0f, 1280, 720, 0.1f, 300.0f };
+PerspectiveParams pp = {45.0f, 1280, 720, 0.1f, 300.0f};
 int old_w = 1280;
 int old_h = 720;
-
 
 ///////////////////////////////////////////////////////////////////////////
 // Load models (both vertex buffers and textures).
@@ -86,7 +85,6 @@ void loadModels()
 	carModel = loadModelFromOBJ("../scenes/car.obj");
 	groundModel = loadModelFromOBJ("../scenes/ground_plane.obj");
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 /// This function is called once at the start of the program and never again
@@ -113,7 +111,6 @@ void drawGround(mat4 mvpMatrix)
 	render(groundModel);
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 /// This function will be called once per frame, so the code to set up
 /// the scene for rendering should go here
@@ -124,7 +121,7 @@ void display()
 	int w, h;
 	SDL_GetWindowSize(g_window, &w, &h);
 
-	if(pp.w != old_w || pp.h != old_h)
+	if (pp.w != old_w || pp.h != old_h)
 	{
 		SDL_SetWindowSize(g_window, pp.w, pp.h);
 		w = pp.w;
@@ -133,11 +130,11 @@ void display()
 		old_h = pp.h;
 	}
 
-	glViewport(0, 0, w, h);                             // Set viewport
-	glClearColor(0.2f, 0.2f, 0.8f, 1.0f);               // Set clear color
+	glViewport(0, 0, w, h);								// Set viewport
+	glClearColor(0.2f, 0.2f, 0.8f, 1.0f);				// Set clear color
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clears the color buffer and the z-buffer
-	glEnable(GL_DEPTH_TEST);                            // enable Z-buffering
-	glDisable(GL_CULL_FACE);                            // disables not showing back faces of triangles
+	glEnable(GL_DEPTH_TEST);							// enable Z-buffering
+	glDisable(GL_CULL_FACE);							// disables not showing back faces of triangles
 
 	// Set the shader program to use for this draw call
 	glUseProgram(shaderProgram);
@@ -148,11 +145,11 @@ void display()
 	// Set up the view matrix
 	// The view matrix defines where the viewer is looking
 	// Initially fixed, but will be replaced in the tutorial.
-	mat4 constantViewMatrix = mat4(0.707106769f, -0.408248276f, 1.00000000f, 0.000000000f,  //
-	                               0.000000000f, 0.816496551f, 1.00000000f, 0.000000000f,   //
-	                               -0.707106769f, -0.408248276f, 1.00000000f, 0.000000000f, //
-	                               0.000000000f, 0.000000000f, -30.0000000f, 1.00000000f);  //
-	//mat4 viewMatrix = constantViewMatrix;
+	mat4 constantViewMatrix = mat4(0.707106769f, -0.408248276f, 1.00000000f, 0.000000000f,	//
+								   0.000000000f, 0.816496551f, 1.00000000f, 0.000000000f,	//
+								   -0.707106769f, -0.408248276f, 1.00000000f, 0.000000000f, //
+								   0.000000000f, 0.000000000f, -30.0000000f, 1.00000000f);	//
+	// mat4 viewMatrix = constantViewMatrix;
 
 	// use camera direction as -z axis and compute the x (cameraRight) and y (cameraUp) base vectors
 	vec3 cameraRight = normalize(cross(cameraDirection, worldUp));
@@ -164,7 +161,7 @@ void display()
 	mat4 viewMatrix = cameraRotation * translate(-cameraPosition);
 
 	// Setup the projection matrix
-	if(w != old_w || h != old_h)
+	if (w != old_w || h != old_h)
 	{
 		pp.h = h;
 		pp.w = w;
@@ -172,7 +169,6 @@ void display()
 		old_h = h;
 	}
 	mat4 projectionMatrix = perspective(radians(pp.fov), float(pp.w) / float(pp.h), pp.near, pp.far);
-
 
 	const int mvploc = glGetUniformLocation(shaderProgram, "modelViewProjectionMatrix");
 	const int mloc = glGetUniformLocation(shaderProgram, "modelMatrix");
@@ -187,7 +183,7 @@ void display()
 
 	// Ground
 	// Task 5: Uncomment this
-	//drawGround(modelViewProjectionMatrix);
+	// drawGround(modelViewProjectionMatrix);
 
 	// car
 	modelViewProjectionMatrix = projectionMatrix * viewMatrix * carModelMatrix;
@@ -195,9 +191,22 @@ void display()
 	glUniformMatrix4fv(mloc, 1, false, &carModelMatrix[0].x);
 	render(carModel);
 
+	// 2nd car
+	// first make it move:
+	mat4 rToApply = rotate(-currentTime, worldUp);
+	carModelMatrix2 = carModel2Origin * (rToApply * (translate(vec3(10.0f, 0.0f, 0.0f))));
+
+	// vec4 dir = R * vec4(car_forward, 0.0f);
+	// T = translate(-car_forward * speed * deltaTime) * T;
+	// R = glm::rotate(rotateSpeed * deltaTime, glm::vec3(0, 1, 0)) * R;
+	//  draw it:
+	modelViewProjectionMatrix = projectionMatrix * viewMatrix * carModelMatrix2;
+	glUniformMatrix4fv(mvploc, 1, false, &modelViewProjectionMatrix[0].x);
+	glUniformMatrix4fv(mloc, 1, false, &carModelMatrix2[0].x);
+	render(carModel);
+
 	glUseProgram(0);
 }
-
 
 ///////////////////////////////////////////////////////////////////////////////
 /// This function is used to update the scene according to user input
@@ -208,26 +217,25 @@ bool handleEvents(void)
 	SDL_Event event;
 	bool quitEvent = false;
 
-	while(SDL_PollEvent(&event))
+	while (SDL_PollEvent(&event))
 	{
 		// Allow ImGui to capture events.
 		ImGui_ImplSdlGL3_ProcessEvent(&event);
 
 		// More info at https://wiki.libsdl.org/SDL_Event
-		if(event.type == SDL_QUIT || (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_ESCAPE))
+		if (event.type == SDL_QUIT || (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_ESCAPE))
 		{
 			quitEvent = true;
 		}
-		else if(event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_g)
+		else if (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_g)
 		{
 			showUI = !showUI;
 		}
-		else if(event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_PRINTSCREEN)
+		else if (event.type == SDL_KEYUP && event.key.keysym.sym == SDLK_PRINTSCREEN)
 		{
 			labhelper::saveScreenshot();
 		}
-		else if(event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT
-		        && !(ImGui::GetIO().WantCaptureMouse))
+		else if (event.type == SDL_MOUSEBUTTONDOWN && event.button.button == SDL_BUTTON_LEFT && !(ImGui::GetIO().WantCaptureMouse))
 		{
 			g_isMouseDragging = true;
 			int x;
@@ -237,17 +245,18 @@ bool handleEvents(void)
 			g_prevMouseCoords.y = y;
 		}
 
-		if(!(SDL_GetMouseState(NULL, NULL) & SDL_BUTTON(SDL_BUTTON_LEFT)))
+		if (!(SDL_GetMouseState(NULL, NULL) & SDL_BUTTON(SDL_BUTTON_LEFT)))
 		{
 			g_isMouseDragging = false;
 		}
 
-		if(event.type == SDL_MOUSEMOTION && g_isMouseDragging && !(ImGui::GetIO().WantCaptureMouse))
+		if (event.type == SDL_MOUSEMOTION && g_isMouseDragging && !(ImGui::GetIO().WantCaptureMouse))
 		{
 			// More info at https://wiki.libsdl.org/SDL_MouseMotionEvent
 			int delta_x = event.motion.x - g_prevMouseCoords.x;
 			int delta_y = event.motion.y - g_prevMouseCoords.y;
-			if (event.button.button & SDL_BUTTON(SDL_BUTTON_LEFT)) {
+			if (event.button.button & SDL_BUTTON(SDL_BUTTON_LEFT))
+			{
 				float rotationSpeed = 0.005f;
 				mat4 yaw = rotate(rotationSpeed * -delta_x, worldUp);
 				mat4 pitch = rotate(rotationSpeed * -delta_y, normalize(cross(cameraDirection, worldUp)));
@@ -259,7 +268,7 @@ bool handleEvents(void)
 	}
 
 	// check keyboard state (which keys are still pressed)
-	const uint8_t* state = SDL_GetKeyboardState(nullptr);
+	const uint8_t *state = SDL_GetKeyboardState(nullptr);
 
 	// implement controls based on key states
 	const float speed = 10.f;
@@ -289,7 +298,6 @@ bool handleEvents(void)
 	return quitEvent;
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 /// This function is to hold the general GUI logic
 ///////////////////////////////////////////////////////////////////////////////
@@ -302,7 +310,7 @@ void gui()
 	ImGui::Text("Aspect Ratio: %.2f", float(pp.w) / float(pp.h));
 	ImGui::SliderFloat("Near Plane", &pp.near, 0.1f, 300.0f, "%.2f", 2.f);
 	ImGui::SliderFloat("Far Plane", &pp.far, 0.1f, 300.0f, "%.2f", 2.f);
-	if(ImGui::Button("Reset"))
+	if (ImGui::Button("Reset"))
 	{
 		pp.fov = 45.0f;
 		pp.w = 1280;
@@ -311,12 +319,11 @@ void gui()
 		pp.far = 300.0f;
 	}
 	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
-	            ImGui::GetIO().Framerate);
+				ImGui::GetIO().Framerate);
 	// ----------------------------------------------------------
 }
 
-
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
 	g_window = labhelper::init_window_SDL("OpenGL Lab 3");
 
@@ -326,7 +333,7 @@ int main(int argc, char* argv[])
 	bool stopRendering = false;
 	auto startTime = std::chrono::system_clock::now();
 
-	while(!stopRendering)
+	while (!stopRendering)
 	{
 		// update currentTime
 		std::chrono::duration<float> timeSinceStart = std::chrono::system_clock::now() - startTime;
@@ -342,7 +349,7 @@ int main(int argc, char* argv[])
 		display();
 
 		// Render overlay GUI.
-		if(showUI)
+		if (showUI)
 		{
 			gui();
 		}

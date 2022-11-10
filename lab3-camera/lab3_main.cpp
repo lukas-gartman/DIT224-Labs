@@ -179,7 +179,7 @@ void display()
 
 	// Ground
 	// Task 5: Uncomment this
-	// drawGround(modelViewProjectionMatrix);
+	drawGround(modelViewProjectionMatrix);
 
 	// car
 	modelViewProjectionMatrix = projectionMatrix * viewMatrix * carModelMatrix;
@@ -189,8 +189,8 @@ void display()
 
 	// 2nd car
 	// first make it move:
-	mat4 rToApply = rotate(-currentTime, worldUp);
-	carModelMatrix2 = carModel2Origin * (rToApply * (translate(vec3(10.0f, 0.0f, 0.0f))));
+	mat4 rToApply = rotate(-currentTime * 5.0f, worldUp);
+	carModelMatrix2 = carModel2Origin * rToApply * translate(vec3(10.0f, 0.0f, 0.0f));
 
 	// vec4 dir = R * vec4(car_forward, 0.0f);
 	// T = translate(-car_forward * speed * deltaTime) * T;
@@ -267,8 +267,8 @@ bool handleEvents(void)
 	const uint8_t *state = SDL_GetKeyboardState(nullptr);
 
 	// implement controls based on key states
-	const float speed = 20.f;
-	const float rotateSpeed = 3.f;
+	const float speed = 50.f;
+	const float rotateSpeed = 4.f;
 	vec3 car_forward = vec3(0, 0, 1);
 	if (state[SDL_SCANCODE_UP])
 	{

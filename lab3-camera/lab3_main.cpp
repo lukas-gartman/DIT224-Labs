@@ -14,10 +14,6 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
 
-// DELETE THIS LATER
-#include <iostream>
-#include "glm/ext.hpp"
-
 using namespace glm;
 using namespace labhelper;
 
@@ -54,8 +50,8 @@ Model *carModel = nullptr;
 Model *groundModel = nullptr;
 vec3 test(0.0, 4.0, 0.0);
 mat4 carModelMatrix = translate(test);
-mat4 carModelMatrix2 = translate(vec3(25.0f, 0.0f, 0.0f));
-mat4 carModel2Origin = translate(vec3(25.0f, 0.0f, 0.0f));
+mat4 carModelMatrix2 = translate(vec3(20.0f, 0.0f, 0.0f));
+mat4 carModel2Origin = translate(vec3(20.0f, 0.0f, 0.0f));
 
 vec3 worldUp = vec3(0.0f, 1.0f, 0.0f);
 
@@ -271,8 +267,8 @@ bool handleEvents(void)
 	const uint8_t *state = SDL_GetKeyboardState(nullptr);
 
 	// implement controls based on key states
-	const float speed = 10.f;
-	const float rotateSpeed = 2.f;
+	const float speed = 20.f;
+	const float rotateSpeed = 3.f;
 	vec3 car_forward = vec3(0, 0, 1);
 	if (state[SDL_SCANCODE_UP])
 	{

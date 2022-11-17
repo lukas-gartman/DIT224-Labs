@@ -167,7 +167,31 @@ void initFullScreenQuad()
 	if(fullScreenQuadVAO == 0)
 	{
 		// Task 4.1
-		// ...
+		glGenVertexArrays(1, &fullScreenQuadVAO);
+
+		glBindVertexArray(fullScreenQuadVAO);
+
+		GLfloat positions[] = {
+		   -1.0,-1.0,
+			1.0,-1.0,
+		   -1.0, 1.0,
+
+		    1.0,-1.0,
+			1.0, 1.0,
+		   -1.0, 1.0
+		};
+
+		GLuint positionBuffer;
+		glGenBuffers(1, &positionBuffer);
+		// Set the newly created buffer as the current one
+		glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
+		// Send the vertex color data to the current buffer
+		glBufferData(GL_ARRAY_BUFFER, labhelper::array_length(positions) * sizeof(float), positions, GL_STATIC_DRAW);
+
+		glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
+		glVertexAttribPointer(0, 2, GL_FLOAT, false /*normalized*/, 0 /*stride*/, 0 /*offset*/);
+
+		glEnableVertexAttribArray(0); // Enable the vertex position attribute
 	}
 }
 
@@ -180,7 +204,13 @@ void drawFullScreenQuad()
 	// draw a quad at full screen
 	///////////////////////////////////////////////////////////////////////////
 	// Task 4.2
-	// ...
+	GLboolean depth_test_enabled;
+	glGetBooleanv(GL_DEPTH_TEST, &depth_test_enabled);
+	glDisable(GL_DEPTH_TEST);
+	glBindVertexArray(fullScreenQuadVAO);
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+	if(depth_test_enabled)
+		glEnable(GL_DEPTH_TEST);
 }
 
 
@@ -277,8 +307,8 @@ void initialize()
 	loadScenes();
 
 	// You can find the valid values for this in `loadScenes`: "Ship", "Material Test" and "Cube"
-	changeScene("Ship");
-	//changeScene("Material Test");
+	//changeScene("Ship");
+	changeScene("Material Test");
 	//changeScene("Cube");
 }
 
@@ -339,6 +369,11 @@ void display(void)
 	// Task 4.3 - Render a fullscreen quad, to generate the background from the
 	//            environment map.
 	///////////////////////////////////////////////////////////////////////////
+	glUseProgram(backgroundProgram);
+	labhelper::setUniformSlow(backgroundProgram, "environment_multiplier", environment_multiplier);
+	labhelper::setUniformSlow(backgroundProgram, "inv_PV", inverse(projectionMatrix * viewMatrix));
+	labhelper::setUniformSlow(backgroundProgram, "camera_pos", camera.position);
+	drawFullScreenQuad();
 
 	///////////////////////////////////////////////////////////////////////////
 	// Render the .obj models

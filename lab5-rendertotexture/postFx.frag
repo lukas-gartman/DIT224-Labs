@@ -47,7 +47,10 @@ vec3 grayscale(vec3 rgbSample);
  */
 vec3 toSepiaTone(vec3 rgbSample);
 
-
+/**
+ * Each square block of pixels shows the color of the same pixel
+ */
+vec3 mosaic(vec2 coord);
 
 
 void main()
@@ -74,7 +77,7 @@ void main()
 		fragmentColor = vec4(toSepiaTone(blur(mushrooms(gl_FragCoord.xy))), 1.0);
 		break;
 	case 6:
-		fragmentColor = vec4(0.0); // place holder
+		fragmentColor = vec4(mosaic(gl_FragCoord.xy), 1.0);
 		break;
 	case 7:
 		fragmentColor = vec4(0.0); // place holder
@@ -103,7 +106,7 @@ vec3 toSepiaTone(vec3 rgbSample)
 	vec3 yiqInverseTransform2 = vec3(1, -1.105, 1.702);
 
 	// transform to YIQ color space and set color information to sepia tone
-	vec3 yiq = vec3(dot(yiqTransform0, rgbSample), 0.2, 0.0);
+	vec3 yiq = vec3(dot(yiqTransform0, rgbSample), 0.5, 0.0);
 
 	// inverse transform to RGB color space
 	vec3 result = vec3(dot(yiqInverseTransform0, yiq), dot(yiqInverseTransform1, yiq),
@@ -113,7 +116,7 @@ vec3 toSepiaTone(vec3 rgbSample)
 
 vec2 mushrooms(vec2 inCoord)
 {
-	return inCoord + vec2(sin(time * 4.3127 + inCoord.y / 9.0) * 15.0, 0.0);
+	return inCoord + vec2(tan(time * 4.3127 + inCoord.y / 9.0) * 15.0, 0.0);
 }
 
 vec3 blur(vec2 coord)
@@ -135,4 +138,10 @@ vec3 blur(vec2 coord)
 vec3 grayscale(vec3 rgbSample)
 {
 	return vec3(rgbSample.r * 0.2126 + rgbSample.g * 0.7152 + rgbSample.b * 0.0722);
+}
+
+vec3 mosaic(vec2 coord)
+{
+	// Clamps to the top-left pixel in the grid by subtracting the rest of the pixels in a 25-pixel radius
+	return textureRect(frameBufferTexture, vec2(coord.x - mod(coord.x, 25), coord.y - mod(coord.y, 25))).rgb;
 }

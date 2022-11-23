@@ -59,7 +59,7 @@ float lightZenith = 45.f;
 float lightDistance = 55.f;
 bool animateLight = true;
 vec3 point_light_color = vec3(1.f, 1.f, 1.f);
-bool useSpotLight = false;
+bool useSpotLight = true; // false
 float innerSpotlightAngle = 17.5f;
 float outerSpotlightAngle = 22.5f;
 float point_light_intensity_multiplier = 10000.0f;
@@ -75,14 +75,14 @@ enum ClampMode
 };
 
 FboInfo shadowMapFB;
-int shadowMapResolution = 1024;
-int shadowMapClampMode = ClampMode::Edge;
+int shadowMapResolution = 128; // 1024
+int shadowMapClampMode = ClampMode::Border; // ClampMode::Edge
 bool shadowMapClampBorderShadowed = false;
-bool usePolygonOffset = false;
+bool usePolygonOffset = true; // false
 bool useSoftFalloff = false;
 bool useHardwarePCF = false;
-float polygonOffset_factor = 1.0f; // .25f
-float polygonOffset_units = 5000.0f;  // 1.0f
+float polygonOffset_factor = 2.0f; // .25f
+float polygonOffset_units = 10.0f;  // 1.0f
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -227,9 +227,12 @@ void initialize()
 	///////////////////////////////////////////////////////////////////////
 	shadowMapFB.resize(shadowMapResolution, shadowMapResolution);
 
+	// Hardware shadow map lookup
 	glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
 	glEnable(GL_DEPTH_TEST); // enable Z-buffering
 	glEnable(GL_CULL_FACE);  // enables backface culling
@@ -281,6 +284,9 @@ void drawScene(GLuint currentShaderProgram,
 
 	mat4 lightMatrix = translate(vec3(0.5f)) * scale(vec3(0.5f)) * lightProjectionMatrix * lightViewMatrix * inverse(viewMatrix);
 	labhelper::setUniformSlow(currentShaderProgram, "lightMatrix", lightMatrix);
+
+	labhelper::setUniformSlow(currentShaderProgram, "useSpotlight", useSpotLight);
+	labhelper::setUniformSlow(currentShaderProgram, "useSoftFalloff", useSoftFalloff);
 
 
 	// Environment
@@ -364,6 +370,16 @@ void display(void)
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 		vec4 border(shadowMapClampBorderShadowed ? 0.f : 1.f);
 		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, &border.x);
+	}
+
+	if (useHardwarePCF) {
+		glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	} else {
+		glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	}
 
 	// This line is to avoid some warnings from OpenGL for having the shadowmap attached to texture unit 0

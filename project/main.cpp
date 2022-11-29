@@ -65,7 +65,24 @@ vec3 point_light_color = vec3(1.f, 1.f, 1.f);
 float point_light_intensity_multiplier = 10000.0f;
 
 
+///////////////////////////////////////////////////////////////////////////////
+// Shadow map
+///////////////////////////////////////////////////////////////////////////////
+enum ClampMode
+{
+	Edge = 1,
+	Border = 2
+};
 
+FboInfo shadowMapFB;
+int shadowMapResolution = 1024;
+int shadowMapClampMode = ClampMode::Border; // ClampMode::Edge
+bool shadowMapClampBorderShadowed = false;
+bool usePolygonOffset = true; // false
+bool useSoftFalloff = false;
+bool useHardwarePCF = false;
+float polygonOffset_factor = 2.0f; // .25f
+float polygonOffset_units = 10.0f;  // 1.0f
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -87,6 +104,8 @@ mat4 roomModelMatrix;
 mat4 landingPadModelMatrix;
 mat4 fighterModelMatrix;
 
+// translation and rotation matrix for ship
+mat4 T(1.0f), R(1.0f);
 float shipSpeed = 50;
 
 
@@ -135,6 +154,7 @@ void initialize()
 
 	roomModelMatrix = mat4(1.0f);
 	fighterModelMatrix = translate(15.0f * worldUp);
+	T = fighterModelMatrix;
 	landingPadModelMatrix = mat4(1.0f);
 
 	///////////////////////////////////////////////////////////////////////
@@ -149,7 +169,17 @@ void initialize()
 	irradianceMap = labhelper::loadHdrTexture("../scenes/envmaps/" + envmap_base_name + "_irradiance.hdr");
 	reflectionMap = labhelper::loadHdrMipmapTexture(filenames);
 
+	///////////////////////////////////////////////////////////////////////
+	// Setup Framebuffer for shadow map rendering
+	///////////////////////////////////////////////////////////////////////
+	shadowMapFB.resize(shadowMapResolution, shadowMapResolution);
 
+	// Hardware shadow map lookup
+	glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
 	glEnable(GL_DEPTH_TEST); // enable Z-buffering
 	glEnable(GL_CULL_FACE);  // enables backface culling
@@ -200,6 +230,8 @@ void drawScene(GLuint currentShaderProgram,
 	labhelper::setUniformSlow(currentShaderProgram, "viewSpaceLightDir",
 	                          normalize(vec3(viewMatrix * vec4(-lightPosition, 0.0f))));
 
+	mat4 lightMatrix = translate(vec3(0.5f)) * scale(vec3(0.5f)) * lightProjectionMatrix * lightViewMatrix * inverse(viewMatrix);
+	labhelper::setUniformSlow(currentShaderProgram, "lightMatrix", lightMatrix);
 
 	// Environment
 	labhelper::setUniformSlow(currentShaderProgram, "environment_multiplier", environment_multiplier);
@@ -254,7 +286,7 @@ void display(void)
 	mat4 viewMatrix = lookAt(cameraPosition, cameraPosition + cameraDirection, worldUp);
 
 	vec4 lightStartPosition = vec4(40.0f, 40.0f, 0.0f, 1.0f);
-	lightPosition = vec3(rotate(currentTime, worldUp) * lightStartPosition);
+	lightPosition = vec3(lightStartPosition);
 	mat4 lightViewMatrix = lookAt(lightPosition, vec3(0.0f), worldUp);
 	mat4 lightProjMatrix = perspective(radians(45.0f), 1.0f, 25.0f, 100.0f);
 
@@ -270,6 +302,68 @@ void display(void)
 	glActiveTexture(GL_TEXTURE0);
 
 
+	///////////////////////////////////////////////////////////////////////////
+	// Set up shadow map parameters
+	///////////////////////////////////////////////////////////////////////////
+	if (shadowMapFB.width != shadowMapResolution || shadowMapFB.height != shadowMapResolution) {
+		shadowMapFB.resize(shadowMapResolution, shadowMapResolution);
+	}
+
+	// Control the clamp mode
+	if (shadowMapClampMode == ClampMode::Edge) {
+		glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	}
+
+	if (shadowMapClampMode == ClampMode::Border) {
+		glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		vec4 border(shadowMapClampBorderShadowed ? 0.f : 1.f);
+		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, &border.x);
+	}
+
+	if (useHardwarePCF) {
+		glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	}
+	else {
+		glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	}
+
+	// This line is to avoid some warnings from OpenGL for having the shadowmap attached to texture unit 0
+	// when using a shader that samples from that texture with a sampler2D instead of a shadow sampler.
+	// It is never actually sampled, but just having it set there generates the warning in some systems.
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	///////////////////////////////////////////////////////////////////////////
+	// Draw Shadow Map
+	///////////////////////////////////////////////////////////////////////////
+	if (usePolygonOffset) {
+		glEnable(GL_POLYGON_OFFSET_FILL);
+		glPolygonOffset(polygonOffset_factor, polygonOffset_units);
+	}
+
+	// bind and clear frame buffer
+	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFB.framebufferId);
+	glViewport(0, 0, shadowMapFB.width, shadowMapFB.height);
+	glClearColor(0.2f, 0.2f, 0.8f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glActiveTexture(GL_TEXTURE10);
+	glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
+	drawScene(simpleShaderProgram, lightViewMatrix, lightProjMatrix, lightViewMatrix, lightProjMatrix);
+
+	labhelper::Material& screen = landingpadModel->m_materials[8];
+	screen.m_emission_texture.gl_id = shadowMapFB.colorTextureTargets[0]; // TODO: determine index?
+
+	if (usePolygonOffset) {
+		glDisable(GL_POLYGON_OFFSET_FILL);
+	}
 
 	///////////////////////////////////////////////////////////////////////////
 	// Draw from camera
@@ -282,8 +376,6 @@ void display(void)
 	drawBackground(viewMatrix, projMatrix);
 	drawScene(shaderProgram, viewMatrix, projMatrix, lightViewMatrix, lightProjMatrix);
 	debugDrawLight(viewMatrix, projMatrix, vec3(lightPosition));
-
-
 
 }
 
@@ -387,6 +479,40 @@ bool handleEvents(void)
 	{
 		cameraPosition += cameraSpeed * deltaTime * worldUp;
 	}
+
+	// control ship
+	const float rotateSpeed = 4.f;
+	vec3 ship_forward = vec3(-1, 0, 0);
+	vec3 ship_up = vec3(0, 1, 0);
+	if (state[SDL_SCANCODE_UP])
+	{
+		ship_forward = R * vec4(ship_forward, 0.0f);
+		T = translate(ship_forward * shipSpeed * deltaTime) * T;
+	}
+	if (state[SDL_SCANCODE_DOWN])
+	{
+		ship_forward = R * vec4(ship_forward, 0.0f);
+		T = translate(-ship_forward * shipSpeed * deltaTime) * T;
+	}
+	if (state[SDL_SCANCODE_LEFT])
+	{
+		R = rotate(rotateSpeed * deltaTime, vec3(0, 1, 0)) * R;
+	}
+	if (state[SDL_SCANCODE_RIGHT])
+	{
+		R = rotate(-rotateSpeed * deltaTime, vec3(0, 1, 0)) * R;
+	}
+	if (state[SDL_SCANCODE_Z])
+	{
+		T = translate(ship_up * shipSpeed * deltaTime) * T;
+	}
+	if (state[SDL_SCANCODE_X])
+	{
+		T = translate(-ship_up * shipSpeed * deltaTime) * T;
+	}
+
+	fighterModelMatrix = T * R;
+
 	return quitEvent;
 }
 

@@ -21,6 +21,7 @@ using namespace glm;
 #include <Model.h>
 #include "hdr.h"
 #include "fbo.h"
+#include "ParticleSystem.h"
 
 
 
@@ -46,8 +47,9 @@ bool g_isMouseDragging = false;
 // Shader programs
 ///////////////////////////////////////////////////////////////////////////////
 GLuint shaderProgram;       // Shader for rendering the final image
-GLuint simpleShaderProgram; // Shader used to draw the shadow map
+GLuint simpleShaderProgram;
 GLuint backgroundProgram;
+GLuint basicShaderProgram;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Environment
@@ -108,6 +110,9 @@ mat4 fighterModelMatrix;
 mat4 T(1.0f), R(1.0f);
 float shipSpeed = 50;
 
+// Particles
+ParticleSystem particle_system(100000);
+
 
 void loadShaders(bool is_reload)
 {
@@ -129,6 +134,14 @@ void loadShaders(bool is_reload)
 	if(shader != 0)
 	{
 		shaderProgram = shader;
+	}
+
+	shader = labhelper::loadShaderProgram("../project/basic.vert", "../project/basic.frag",
+		false);
+
+	if (shader != 0)
+	{
+		basicShaderProgram = shader;
 	}
 }
 
@@ -185,7 +198,8 @@ void initialize()
 	glEnable(GL_CULL_FACE);  // enables backface culling
 
 
-
+	// Particles
+	particle_system.init_gpu_data();
 }
 
 void debugDrawLight(const glm::mat4& viewMatrix,
@@ -358,8 +372,8 @@ void display(void)
 	glBindTexture(GL_TEXTURE_2D, shadowMapFB.depthBuffer);
 	drawScene(simpleShaderProgram, lightViewMatrix, lightProjMatrix, lightViewMatrix, lightProjMatrix);
 
-	labhelper::Material& screen = landingpadModel->m_materials[8];
-	screen.m_emission_texture.gl_id = shadowMapFB.colorTextureTargets[0]; // TODO: determine index?
+	/*labhelper::Material& screen = landingpadModel->m_materials[8];
+	screen.m_emission_texture.gl_id = shadowMapFB.colorTextureTargets[0];*/
 
 	if (usePolygonOffset) {
 		glDisable(GL_POLYGON_OFFSET_FILL);
@@ -376,6 +390,20 @@ void display(void)
 	drawBackground(viewMatrix, projMatrix);
 	drawScene(shaderProgram, viewMatrix, projMatrix, lightViewMatrix, lightProjMatrix);
 	debugDrawLight(viewMatrix, projMatrix, vec3(lightPosition));
+
+
+	// Particles
+	glUseProgram(basicShaderProgram);
+	labhelper::setUniformSlow(basicShaderProgram, "projectionMatrix",
+		projMatrix);
+
+	const float theta = labhelper::uniform_randf(0.f, 2.f * M_PI);
+	const float u = labhelper::uniform_randf(-1.f, 1.f);
+	glm::vec3 pos = glm::vec3(sqrt(1.f - u * u) * cosf(theta), u, sqrt(1.f - u * u) * sinf(theta));
+	Particle p;
+	p.pos = pos * 10.f;
+	particle_system.spawn(p);
+	particle_system.submit_to_gpu(viewMatrix);
 
 }
 
@@ -502,7 +530,7 @@ bool handleEvents(void)
 	{
 		R = rotate(-rotateSpeed * deltaTime, vec3(0, 1, 0)) * R;
 	}
-	if (state[SDL_SCANCODE_Z])
+	if (state[SDL_SCANCODE_SPACE])
 	{
 		T = translate(ship_up * shipSpeed * deltaTime) * T;
 	}

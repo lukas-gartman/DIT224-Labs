@@ -3,9 +3,7 @@
 // required by GLSL spec Sect 4.5.3 (though nvidia does not, amd does)
 precision highp float;
 
-uniform vec3 material_color;
-
-in vec4 data;
+in float lifetime;
 
 layout(location = 0) out vec4 fragmentColor;
 

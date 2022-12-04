@@ -28,6 +28,18 @@ void ParticleSystem::init_gpu_data()
 
 void ParticleSystem::process_particles(float dt)
 {
+	for (Particle &particle : particles) {
+		// Update alive particles!
+		//particle.velocity.y -= 9.82f * dt;
+		particle.pos += particle.velocity * dt;
+		particle.lifetime += dt;
+	}
+
+	for (unsigned i = 0; i < particles.size(); ++i) {
+		// Kill dead particles!
+		if (particles[i].lifetime > particles[i].life_length)
+			kill(i);
+	}
 }
 
 void ParticleSystem::submit_to_gpu(const glm::mat4& viewMat)

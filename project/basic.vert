@@ -4,6 +4,7 @@ layout(location = 0) in vec4 in_data;
 
 uniform mat4 projectionMatrix;
 
+//out vec4 data;
 out float lifetime;
 
 void main()

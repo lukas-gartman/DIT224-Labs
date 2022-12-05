@@ -20,7 +20,7 @@ void ParticleSystem::init_gpu_data()
 
 	glGenBuffers(1, &gl_buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, gl_buffer);
-	glBufferData(GL_ARRAY_BUFFER, max_size * sizeof(float), nullptr, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, max_size * sizeof(vec4), nullptr, GL_STATIC_DRAW);
 
 	glVertexAttribPointer(0, 4, GL_FLOAT, false, 0, 0);
 	glEnableVertexAttribArray(0);
@@ -31,6 +31,7 @@ void ParticleSystem::process_particles(float dt)
 	for (Particle &particle : particles) {
 		// Update alive particles!
 		//particle.velocity.y -= 9.82f * dt;
+		//particle.pos += vec3(2,2,2) * (1.0f/60.0f);
 		particle.pos += particle.velocity * dt;
 		particle.lifetime += dt;
 	}
@@ -48,7 +49,7 @@ void ParticleSystem::submit_to_gpu(const glm::mat4& viewMat)
 
 	gl_data_temp_buffer.clear();
 	for (const Particle &particle : particles) {
-		vec4 pos = viewMat * vec4(particle.pos, particle.lifetime / particle.life_length);
+		vec4 pos = viewMat * vec4(particle.pos, 1.0f);// particle.lifetime / particle.life_length);
 		gl_data_temp_buffer.push_back(pos);
 	}
 

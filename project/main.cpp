@@ -112,8 +112,8 @@ float shipSpeed = 50;
 
 // Particles
 ParticleSystem particle_system(100000);
-float particle_dt = .1f;
-float particle_position = 0.f;
+mat4 particleRotationMatrix;
+
 
 
 void loadShaders(bool is_reload)
@@ -399,20 +399,21 @@ void display(void)
 	labhelper::setUniformSlow(basicShaderProgram, "projectionMatrix",
 		projMatrix);
 
-	for (float i = 0.f; i < 64.f; i++) {
+	for (int i = 0; i < 64; i++) {
 		const float theta = labhelper::uniform_randf(0.f, 2.f * M_PI);
-		const float u = labhelper::uniform_randf(-1.f, 1.f);
-		vec3 pos = glm::vec3(sqrt(1.f - u * u) * cosf(theta), u, sqrt(1.f - u * u) * sinf(theta));
+		const float u = labhelper::uniform_randf(.95f, 1.f);
+		vec3 rand = vec3(u, sqrt(1.f - u * u) * cosf(theta), sqrt(1.f - u * u) * sinf(theta));
 		Particle p;
-		p.pos = pos * 50.f;
-		//p.pos = vec3(0,0,0);
-		/*p.velocity = pos;
+		//p.pos = pos;
+		p.pos = fighterModelMatrix * vec4(12,4,0,1);
+		//particleInitDir
+		p.velocity = particleRotationMatrix * vec4(rand, 1.0f) * 10.0f;
 		p.lifetime = 0.f;
-		p.life_length = 5.f;*/
+		p.life_length = 5.f;
 		particle_system.spawn(p);
-		//particle_system.process_particles(particle_dt);
-		particle_system.submit_to_gpu(viewMatrix);
 	}
+	particle_system.process_particles(deltaTime);
+	particle_system.submit_to_gpu(viewMatrix);
 }
 
 
@@ -548,6 +549,8 @@ bool handleEvents(void)
 	}
 
 	fighterModelMatrix = T * R;
+	
+	particleRotationMatrix = R;
 
 	return quitEvent;
 }
@@ -561,8 +564,6 @@ void gui()
 	// ----------------- Set variables --------------------------
 	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate,
 	            ImGui::GetIO().Framerate);
-	ImGui::SliderFloat("Delta time", &particle_dt, 0.f, 1.f);
-	//ImGui::DragFloat3("Position", &particle_position, 0.f, 0.f, 10.f, "%.3f", 1.0f);   // broken...
 	// ----------------------------------------------------------
 }
 

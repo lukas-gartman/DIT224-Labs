@@ -8,10 +8,10 @@ layout(location = 0) out vec4 fragmentColor;
 void main()
 {
 	// Base color.
-	fragmentColor = texture2D(colortexture, gl_PointCoord);
+	fragmentColor = vec4(1.0f, 1.0f, 0.0f, 1.0f);//texture2D(colortexture, gl_PointCoord);
 	// Make it darker the older it is.
-	fragmentColor.rgb *= (1.0 - life);
+	//fragmentColor.rgb *= (1.0 - life);
 	// Make it fade out the older it is, also all particles have a
 	// very low base alpha so they blend together.
-	fragmentColor.a *= (1.0 - pow(life, 4.0)) * 0.05;
+	//fragmentColor.a *= (1.0 - pow(life, 4.0)) * 0.05;
 }

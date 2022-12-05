@@ -22,6 +22,7 @@ using namespace glm;
 #include "hdr.h"
 #include "fbo.h"
 #include "ParticleSystem.h"
+#include <stb_image.h>
 
 
 
@@ -50,6 +51,7 @@ GLuint shaderProgram;       // Shader for rendering the final image
 GLuint simpleShaderProgram;
 GLuint backgroundProgram;
 GLuint basicShaderProgram;
+GLuint particleShaderProgram;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Environment
@@ -113,6 +115,7 @@ float shipSpeed = 50;
 // Particles
 ParticleSystem particle_system(100000);
 mat4 particleRotationMatrix;
+GLuint explosionTexture;
 
 
 
@@ -138,12 +141,16 @@ void loadShaders(bool is_reload)
 		shaderProgram = shader;
 	}
 
-	shader = labhelper::loadShaderProgram("../project/basic.vert", "../project/basic.frag",
-		false);
-
+	shader = labhelper::loadShaderProgram("../project/basic.vert", "../project/basic.frag", false);
 	if (shader != 0)
 	{
 		basicShaderProgram = shader;
+	}
+
+	shader = labhelper::loadShaderProgram("../project/particle.vert", "../project/particle.frag", false);
+	if (shader != 0)
+	{
+		particleShaderProgram = shader;
 	}
 }
 
@@ -202,6 +209,26 @@ void initialize()
 
 	// Particles
 	particle_system.init_gpu_data();
+
+	// Load Explosion (thrust) texture
+	int expw, exph, expcomp;
+	unsigned char* expimage = stbi_load("../scenes/textures/explosion.png", &expw, &exph, &expcomp, STBI_rgb_alpha);
+
+	glGenTextures(1, &explosionTexture);
+	glBindTexture(GL_TEXTURE_2D, explosionTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, expw, exph, 0, GL_RGBA, GL_UNSIGNED_BYTE, expimage);
+	free(expimage);
+
+	// Clamp texture to edge?
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	glGenerateMipmap(GL_TEXTURE_2D);
+	// Sets the type of filtering to be used on magnifying and
+	// minifying the active texture. These are the nicest available options.
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, 16.0f);
 }
 
 void debugDrawLight(const glm::mat4& viewMatrix,
@@ -395,25 +422,36 @@ void display(void)
 
 
 	// Particles
-	glUseProgram(basicShaderProgram);
-	labhelper::setUniformSlow(basicShaderProgram, "projectionMatrix",
+	glEnable(GL_PROGRAM_POINT_SIZE);
+	// Enable blending.
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glUseProgram(particleShaderProgram);
+	glBindTexture(GL_TEXTURE_2D, explosionTexture);
+	glActiveTexture(GL_TEXTURE0);
+	labhelper::setUniformSlow(particleShaderProgram, "P",
 		projMatrix);
+	labhelper::setUniformSlow(particleShaderProgram, "screen_x", float(windowWidth));
+	labhelper::setUniformSlow(particleShaderProgram, "screen_y", float(windowHeight));
 
 	for (int i = 0; i < 64; i++) {
 		const float theta = labhelper::uniform_randf(0.f, 2.f * M_PI);
 		const float u = labhelper::uniform_randf(.95f, 1.f);
 		vec3 rand = vec3(u, sqrt(1.f - u * u) * cosf(theta), sqrt(1.f - u * u) * sinf(theta));
 		Particle p;
-		//p.pos = pos;
 		p.pos = fighterModelMatrix * vec4(12,4,0,1);
-		//particleInitDir
 		p.velocity = particleRotationMatrix * vec4(rand, 1.0f) * 10.0f;
 		p.lifetime = 0.f;
 		p.life_length = 5.f;
 		particle_system.spawn(p);
 	}
+
 	particle_system.process_particles(deltaTime);
 	particle_system.submit_to_gpu(viewMatrix);
+
+	glDisable(GL_PROGRAM_POINT_SIZE);
+	glDisable(GL_BLEND);
 }
 
 
